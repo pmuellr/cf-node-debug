@@ -1,0 +1,25 @@
+{
+  "name":               "cf-debug-proxy",
+  "main":               "./lib/cf-debug-proxy",
+  "description":        "proxy in aid of debugging node programs on Cloud Foundry",
+  "version":            "0.1.0",
+  "author":             "pmuellr",
+  "license":            "Apache-2.0",
+  "homepage":           "https://hub.jazz.net/project/pmuellr/cf-debug-proxy/overview",
+  "repository": {
+    "type":             "git",
+    "url":              "https://hub.jazz.net/git/pmuellr/cf-debug-proxy"
+  },
+  "dependencies": {
+    "cf-env":           "0.1.x",
+    "http-proxy":       "1.1.x",
+    "nopt":             "2.2.x",
+    "q":                "1.0.1",
+    "underscore":       "1.6.x"
+  },
+  "devDependencies": {
+    "coffee-script":    "1.7.x",
+    "mocha":            "1.17.x",
+    "expect.js":        "0.3.x"
+  }
+}
