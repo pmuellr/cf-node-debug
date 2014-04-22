@@ -7,8 +7,10 @@ _          = require "underscore"
 http       = require "http"
 cfEnv      = require "cf-env"
 httpProxy  = require "http-proxy"
+websocket  = require "websocket"
 
-utils = require "./utils"
+utils       = require "./utils"
+v8messenger = require "./v8messenger"
 
 #-------------------------------------------------------------------------------
 cfCore = cfEnv.getCore()
@@ -24,7 +26,6 @@ exports.run = (args, opts) ->
   utils.vlog "opts: #{utils.JL opts}"
 
   startTarget args, opts
-  startDebug opts
   startProxy opts
 
 #-------------------------------------------------------------------------------
@@ -62,7 +63,35 @@ startTarget = (args, opts) ->
     throw new Error message
 
 #-------------------------------------------------------------------------------
-startDebug = (opts) ->
+connectDebugger = (wsConnection) ->
+
+  v8 = v8messenger.create PORT_V8
+
+  v8.on "error", (err) ->
+    packet =
+      type:   "error"
+      message: err.message
+
+    ws.connection.sendUTF JSON.stringify packet, null, 4
+    v8.close()
+
+  v8.on "close", -> wsConnection.close()
+
+  v8.on "v8-event", (packet) ->
+    ws.connection.sendUTF JSON.stringify packet, null, 4
+
+  wsConnection.on "message", (message) ->
+    utils.vlog "ws message: #{message}"
+
+    if message.type is "binary"
+      utils.vlog "ws binary message ignored"
+      return
+
+    v8.send JSON.parse message.utf8Data
+
+  wsConnection.on "close", (reasonCode, description) ->
+    utils.vlog "ws close: #{reasonCode} - #{description}"
+    v8.close()
 
 #-------------------------------------------------------------------------------
 startProxy = (opts) ->
@@ -74,6 +103,16 @@ startProxy = (opts) ->
 
   proxyServer = http.createServer (request, response) ->
     proxy.web request, response
+
+  wsServer = new websocket.server
+    httpServer:            proxyServer
+    autoAcceptConnections: true
+
+  wsServer.on "request", (request) ->
+    connection = request.accept "v8-debug", request.origin
+    utils.vlog "ws connection accepted"
+
+    connectDebugger connection
 
   proxyServer.on "upgrade", (request, socket, head) ->
     if request.url is "/#{opts.websocket}"

@@ -1,74 +1,112 @@
 # Licensed under the Apache License. See footer for details.
 
+#-------------------------------------------------------------------------------
+# friendly API to interact with the V8 debugger
+#
+# for message objects to send and receive, see:
+#     https://code.google.com/p/v8/wiki/DebuggerProtocol
+#-------------------------------------------------------------------------------
+
 net    = require "net"
 events = require "events"
 
 q = require "q"
 
-utils  = require "../common/utils"
-
-exports.create = (port) ->
-  return new V8Messenger socket
+utils = require "./utils"
 
 #-------------------------------------------------------------------------------
-# emits:
-#    "event", V8 event message
+exports.create = (port) ->
+  return new V8Messenger port
+
+#-------------------------------------------------------------------------------
+# Communicate with the V8 debugger via messages.
+#
+# Instances of this class are event emitters.
+#
+# events emitted:
+#    v8-event (v8 event packet) - a packet from the v8 debugger
+#    close    (null)            - the v8 debugger connection closed
+#    error    (Error)           - an error occurred somewhere
 #-------------------------------------------------------------------------------
 class V8Messenger extends events.EventEmitter
 
   #---------------------------------------------------------------------------
-  constructor: (socket) ->
+  # create a new messenger for a V8 debugger running at the specified port
+  #---------------------------------------------------------------------------
+  constructor: (port) ->
     @_deferred = {}
     @_seq = 1
     @_initMessage()
 
-    socket.on "data", (data) => @_onData data
+    @_socket = net.connect port
+
+    @_socket.setEncoding "utf8"
+
+    @_socket.on "connect", =>
+      utils.vlog "connected to v8 debugger"
+
+    @_socket.on "data", (data) => @_onData data
+
+    @_socket.on "error", (err) => @emit "error", err
+
+    @_socket.on "close", =>
+      utils.vlog "disconnected from v8 debugger"
+      @emit "close"
 
   #---------------------------------------------------------------------------
-  # send a V8 request message, return a promise on the response message
+  # close the debugger connection
   #---------------------------------------------------------------------------
-  send: (msg) ->
-    msg.type = "request"
-    msg.seq   = @_seq++
+  close: ->
+    return unless @_socket?
 
-    @_deferreds[msg.seq] = q.defer()
-
-    msgString = JSON.stringify msg
-    msgString = "Content-Length: #{msgString.length}\r\n\r\n#{msgString}"
-
-    socket.write msgString, "utf8"
-
-    return @_deferreds[msg.seq].promise
+    @_socket.end()
+    @_socket.destroy()
+    @_socket = null
 
   #---------------------------------------------------------------------------
-  _initMessage: ->
-    @inHeaders     = true
-    @headers       = {}
-    @buffer        = ""
-    @contentLength = 0
+  # Send a V8 request packet, return a promise on the response packet.
+  # The packet `type` and `seq` properties will be set for you.
+  #---------------------------------------------------------------------------
+  send: (packet) ->
+    return unless @_socket?
+
+    packet.type = "request"
+    packet.seq   = @_seq++
+
+    @_deferreds[packet.seq] = q.defer()
+
+    packetString = JSON.stringify packet
+    packetString = "Content-Length: #{packetString.length}\r\n\r\n#{packetString}"
+
+    @_socket.write packetString, "utf8"
+
+    return @_deferreds[packet.seq].promise
 
   #---------------------------------------------------------------------------
   _onMessage: (body) ->
     msg = JSON.parse body
 
     if msg.type is "event"
-      @emit "event", body
+      @emit "v8-event", msg
+      return
 
-    else
-      deferred = @_deferreds[msg.request_seq]
-      return unless deferred?
+    deferred = @_deferreds[msg.request_seq]
+    return unless deferred?
 
-      delete @_deferreds[msg.request_seq]
+    delete @_deferreds[msg.request_seq]
 
-      if msg.success
-        deferred.resolve msg
-      else
-        err = new Error msg.message
-        err.isV8 = true
-        deferred.reject err
+    if msg.success
+      deferred.resolve msg
+      return
+
+    err = new Error msg.message
+    err.isV8 = true
+    deferred.reject err
 
   #---------------------------------------------------------------------------
   _onData: (data) ->
+    return unless @_socket?
+
     @buffer += data
 
     while true
@@ -110,8 +148,8 @@ class V8Messenger extends events.EventEmitter
           key = line
           val = ""
         else
-          key = utils.trim line.substr 0, delim
-          val = utils.trim line.substr delim + 1
+          key = (line.substr 0, delim).trim()
+          val = (line.substr delim + 1).trim()
 
         # set the header, and check for Content-Length
         @headers[key] = val

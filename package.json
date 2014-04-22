@@ -15,7 +15,8 @@
     "http-proxy":       "1.1.x",
     "nopt":             "2.2.x",
     "q":                "1.0.1",
-    "underscore":       "1.6.x"
+    "underscore":       "1.6.x",
+    "websocket":        "1.0.x"
   },
   "devDependencies": {
     "coffee-script":    "1.7.x",
