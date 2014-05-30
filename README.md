@@ -1,4 +1,4 @@
-cf-node-debug - proxy requests to multiple servers based on url
+cf-node-debug - a node debugger for Cloud Foundry
 ================================================================================
 
 The `cf-node-debug` package provides debugging capability for your node
@@ -21,9 +21,9 @@ Make sure you add `cf-node-debug` to your `package.json` as well.
 usage
 ================================================================================
 
-    cf-node-debug [options] -- commmand arg arg ...
+    cf-node-debug [options] -- program arg arg ...
 
-`command arg arg ...` is the node command line to start your application
+`program arg arg ...` is what you would pass to `node` to start your program.
 
 options:
 
@@ -33,8 +33,8 @@ options:
 
 The default debug-prefix is `--debugger`.
 
-Note that the `--` token is **REQUIRED** if your node command line
-contains any arguments that start with `-`.  Otherwise it's optional.
+Note that the `--` token is **REQUIRED** if your program or any arguments
+start with `-`.  Otherwise it's optional.
 
 This program does the following:
 
@@ -54,7 +54,7 @@ This program does the following:
 
 example:
 
-    cf-node-debug -- node server.js
+    cf-node-debug -- server.js
 
 assumptions
 --------------------------------------------------------------------------------
