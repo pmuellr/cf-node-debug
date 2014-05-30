@@ -2,30 +2,30 @@
 
 var http = require("http")
 
-var cfEnv = require("cf-env")
+var cfenv = require("cfenv")
 
-var cfCore = cfEnv.getCore()
+var appEnv = cfenv.getAppEnv()
 
 var server = http.createServer(cbHandleRequest)
 
-log("starting at url: " + cfCore.url)
-server.listen(cfCore.port, cfCore.bind, cbListening)
+log("starting at url: " + appEnv.url)
+server.listen(appEnv.port, appEnv.bind, cbListening)
 
 //------------------------------------------------------------------------------
 function cbHandleRequest(request, response) {
-	log("request for " + request.url)
+  log("request for " + request.url)
   response.writeHead(200, {"Content-Type": "text/plain"})
   response.end("you requested " + request.url)
 }
 
 //------------------------------------------------------------------------------
 function cbListening(request, response) {
-	log("server started  at url: " + cfCore.url)
+  log("server started  at url: " + appEnv.url)
 }
 
 //------------------------------------------------------------------------------
 function log(message) {
-	console.log("app server: " + message)
+  console.log("app server: " + message)
 }
 
 /*

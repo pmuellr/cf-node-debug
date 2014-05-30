@@ -1,32 +1,64 @@
 # Licensed under the Apache License. See footer for details.
 
+path          = require "path"
 child_process = require "child_process"
 
 q          = require "q"
 _          = require "underscore"
 http       = require "http"
-cfEnv      = require "cf-env"
+cfenv      = require "cfenv"
 httpProxy  = require "http-proxy"
 websocket  = require "websocket"
 
 utils       = require "./utils"
-v8messenger = require "./v8messenger"
 
 #-------------------------------------------------------------------------------
-cfCore = cfEnv.getCore()
+appEnv = cfenv.getAppEnv()
 
-PORT_PROXY  = cfCore.port
-PORT_TARGET = cfCore.port + 1
+PORT_PROXY  = appEnv.port
+PORT_TARGET = appEnv.port + 1
+PORT_DEBUG  = appEnv.port + 2
 PORT_V8     = 5858
+
+URL_TARGET  = "http://localhost:#{PORT_TARGET}"
+URL_DEBUG   = "http://localhost:#{PORT_DEBUG}"
+
+ProxyTarget = new httpProxy.createProxyServer
+  target:
+    host: "localhost"
+    port: PORT_TARGET
+
+ProxyDebug = new httpProxy.createProxyServer
+  target:
+    host: "localhost"
+    port: PORT_DEBUG
+
+PRE_T = "target:"
+PRE_D = "debug: "
+PRE_P = "proxy:"
 
 #-------------------------------------------------------------------------------
 exports.run = (args, opts) ->
   utils.vlog "version: #{utils.VERSION}"
-  utils.vlog "args: #{args.join ' '}"
-  utils.vlog "opts: #{utils.JL opts}"
+  utils.vlog "args:    #{args.join ' '}"
+  utils.vlog "opts:    #{utils.JL opts}"
 
-  startTarget args, opts
+  target = startTarget args, opts
+  debugr = startDebugger opts
   startProxy opts
+
+  process.on "exit", (code) ->
+    utils.log "#{PRE_P} exiting; code: #{code}"
+    kill "target",   target
+    kill "debugger", debugr
+
+#-------------------------------------------------------------------------------
+kill = (label, proc) ->
+  try
+    utils.log "killing #{label}"
+    proc.kill()
+  catch e
+    utils.log "killing #{label}; exception: #{e}"
 
 #-------------------------------------------------------------------------------
 startTarget = (args, opts) ->
@@ -46,91 +78,73 @@ startTarget = (args, opts) ->
 
   options = {env, stdio}
 
-  utils.log "starting target process `node #{args.join ' '}`"
-  utils.log "target process PORT set to #{env.PORT}"
+  utils.log "#{PRE_T} starting `node #{args.join ' '}`"
   child = child_process.spawn "node", args, options
 
   child.stdout.pipe(process.stdout)
   child.stderr.pipe(process.stderr)
 
-  child.on "error", (err) ->
-    utils.log "error running target process: #{err}"
-    throw err
+  child.on "error", (err)  -> utils.log "#{PRE_T} exception: #{err}"
+  child.on "exit",  (code) -> utils.log "#{PRE_T} exited with code: #{code}"
 
-  child.on "exit", (code) ->
-    message = "target process exited with code: #{code}"
-    utils.log message
-    throw new Error message
+  return child
 
 #-------------------------------------------------------------------------------
-connectDebugger = (wsConnection) ->
+startDebugger = (opts) ->
+  args = ["node_modules/.bin/node-inspector", "--web-port=#{PORT_DEBUG}"]
 
-  v8 = v8messenger.create PORT_V8
+  stdio =  ["ignore", "pipe", "pipe"]
 
-  v8.on "error", (err) ->
-    packet =
-      type:   "error"
-      message: err.message
+  options = {stdio}
 
-    ws.connection.sendUTF JSON.stringify packet, null, 4
-    v8.close()
+  utils.log "#{PRE_D} starting `node #{args.join ' '}`"
+  child = child_process.spawn "node", args, options
 
-  v8.on "close", -> wsConnection.close()
+  child.stdout.pipe(process.stdout)
+  child.stderr.pipe(process.stderr)
 
-  v8.on "v8-event", (packet) ->
-    ws.connection.sendUTF JSON.stringify packet, null, 4
+  child.on "error", (err)  -> utils.log "#{PRE_D} exception: #{err}"
+  child.on "exit",  (code) -> utils.log "#{PRE_D} exited with code: #{code}"
 
-  wsConnection.on "message", (message) ->
-    utils.vlog "ws message: #{message}"
-
-    if message.type is "binary"
-      utils.vlog "ws binary message ignored"
-      return
-
-    v8.send JSON.parse message.utf8Data
-
-  wsConnection.on "close", (reasonCode, description) ->
-    utils.vlog "ws close: #{reasonCode} - #{description}"
-    v8.close()
+  return child
 
 #-------------------------------------------------------------------------------
 startProxy = (opts) ->
+  debugPrefix = opts["debug-prefix"]
 
-  proxy = httpProxy.createProxyServer
-    target:
-      host: "localhost"
-      port: PORT_TARGET
-
-  proxyServer = http.createServer (request, response) ->
-    proxy.web request, response
-
-  wsServer = new websocket.server
-    httpServer:            proxyServer
-    autoAcceptConnections: true
-
-  wsServer.on "request", (request) ->
-    connection = request.accept "v8-debug", request.origin
-    utils.vlog "ws connection accepted"
-
-    connectDebugger connection
-
-  proxyServer.on "upgrade", (request, socket, head) ->
-    if request.url is "/#{opts.websocket}"
-      return connectDebug request, socket, head
-
-    proxy.ws request, socket, head
-
-  proxy.on "error", (err, request, response) ->
-    utils.log "error in proxy: #{err}"
+  ProxyTarget.on "error", (err, request, response) ->
+    utils.log "#{PRE_P} target exception: #{err}"
     response.writeHead 500, "Content-Type": "text/plain"
     response.end "error processing request; check server console."
 
-  utils.log "proxy server starting on:      #{cfCore.url}"
-  proxyServer.listen PORT_PROXY, ->
-    utils.log "proxy server started on:       #{cfCore.url}"
+  ProxyDebug.on "error", (err, request, response) ->
+    utils.log "#{PRE_P} debug exception: #{err}"
+    response.writeHead 500, "Content-Type": "text/plain"
+    response.end "error processing request; check server console."
 
-    utils.log "listening for v8 websocket on: #{cfCore.url}/#{opts.websocket}"
-    utils.log "everything else goes to:       localhost:#{PORT_TARGET}"
+  proxyServer = http.createServer (request, response) ->
+    [empty, root, rest...] = request.url.split path.sep
+
+    if root is debugPrefix
+      request.url = "/#{rest.join '/'}"
+      ProxyDebug.web request, response
+    else
+      ProxyTarget.web request, response
+
+  proxyServer.on "upgrade", (request, socket, head) ->
+    [empty, root, rest...] = request.url.split path.sep
+
+    if root is debugPrefix
+      request.url = "/#{rest.join '/'}"
+      ProxyDebug.ws request, socket, head
+    else
+      ProxyTarget.ws request, socket, head
+
+
+  utils.log "#{PRE_P} starting server at: #{appEnv.url}"
+  utils.log "#{PRE_P} access debugger at: #{appEnv.url}/#{debugPrefix}/inspector.html"
+
+  proxyServer.listen PORT_PROXY
 
 #-------------------------------------------------------------------------------
 # Copyright IBM Corp. 2014

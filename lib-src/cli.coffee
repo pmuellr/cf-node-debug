@@ -16,10 +16,10 @@ cli.main = (args) ->
     help() if args[0] in ["?", "-?", "--?"]
 
     opts =
-        break:     [ "b", Boolean ]
-        websocket: [ "w", String,  "__debug__" ]
-        verbose:   [ "v", Boolean,  ]
-        help:      [ "h", Boolean ]
+        break:          [ "b", Boolean ]
+        "debug-prefix": [ "d", String,  "--debugger" ]
+        verbose:        [ "v", Boolean,  ]
+        help:           [ "h", Boolean ]
 
     longOpts   = {}
     shortOpts  = {}
@@ -45,9 +45,11 @@ cli.main = (args) ->
 
     utils.verbose opts.verbose
 
-    cfProxy.run args, opts
+    debugPrefix = opts["debug-prefix"]
+    if debugPrefix is ""
+      utils.logError "the value of the --debug-prefix option must be a non-empty string"
 
-    return
+    cfProxy.run args, opts
 
 #-------------------------------------------------------------------------------
 help = ->
@@ -58,9 +60,9 @@ help = ->
 
         options:
 
-            -b --break       break at start of program (default: false)
-            -w --websocket   websocket url to expose   (default: "__debug__")
-            -v --verbose     be verbose
+          -d --debug-prefix   URL prefix of requests sent to the debugger
+          -b --break          have the debugger pause at the beginning of the program
+          -v --verbose        generate lots of diagnostic messages
 
         This program does the following:
 
@@ -68,20 +70,19 @@ help = ->
           - it's PORT environment variable will be changed to port PORT+1
           - it will be launched with the appropriate node debug option
 
+        - starts node-inspector on PORT+2
+
         - starts a proxy server on the PORT environment variable
 
-        - sends non-debug traffic (ie, not prefixed by --websocket option) to
+        - sends non-debug traffic (ie, not prefixed by --debug-url option) to
           the specified application
 
-        - sends debug traffic (ie, prefixed by --websocket option) to the
-          v8 debug port (5858)
+        - sends debug traffic (ie, prefixed by --debug-url option) to
+          node-inspector
 
         example:
 
-            #{utils.PROGRAM} -b -w debug -- node server.js
-
-        This will run the command `node server.js` under debug and pause at
-        the first line of the app.
+            #{utils.PROGRAM} -- node server.js
 
         version: #{utils.VERSION}; for more info: #{utils.HOMEPAGE}
     """

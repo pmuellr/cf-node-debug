@@ -5,22 +5,24 @@
   "version":            "0.1.0",
   "author":             "pmuellr",
   "license":            "Apache-2.0",
-  "homepage":           "https://hub.jazz.net/project/pmuellr/cf-debug-proxy/overview",
+  "homepage":           "https://github.com/cloudfoundry-community/node-cf-debug-proxy",
   "repository": {
     "type":             "git",
-    "url":              "https://hub.jazz.net/git/pmuellr/cf-debug-proxy"
+    "url":              "https://github.com/cloudfoundry-community/node-cf-debug-proxy.git"
   },
   "dependencies": {
-    "cf-env":           "0.1.x",
+    "cfenv":            "0.2.x",
+    "express":          "4.3.x",
     "http-proxy":       "1.1.x",
     "nopt":             "2.2.x",
+    "node-inspector":   "0.7.3",
     "q":                "1.0.1",
     "underscore":       "1.6.x",
     "websocket":        "1.0.x"
   },
   "devDependencies": {
     "coffee-script":    "1.7.x",
-    "mocha":            "1.17.x",
+    "mocha":            "1.20.x",
     "expect.js":        "0.3.x"
   }
 }

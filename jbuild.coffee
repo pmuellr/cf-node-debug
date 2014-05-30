@@ -15,6 +15,7 @@ tasks = defineTasks exports,
   test:  "run tests"
 
 WatchSpec = "lib-src/**/* tests/**/*"
+PidFile   = "tmp/server.pid"
 
 #-------------------------------------------------------------------------------
 mkdir "-p", "tmp"
@@ -35,8 +36,6 @@ tasks.build = ->
 
   cleanDir "lib"
 
-  log "running build"
-
   log "- compiling server coffee files"
   coffee "--output lib lib-src"
 
@@ -51,6 +50,19 @@ tasks.watch = ->
   watchFiles "jbuild.coffee" :->
     log "jbuild file changed; exiting"
     process.exit 0
+
+#-------------------------------------------------------------------------------
+tasks.serve = ->
+  serveDelayed()
+
+#-------------------------------------------------------------------------------
+serveDelayed = ->
+  log "running server"
+
+  args = "bin/cf-debug-proxy.js -- node tests/server.js"
+  args = args.split(/\s+/)
+
+  server.start PidFile, "node", args
 
 #-------------------------------------------------------------------------------
 tasks.test = ->
@@ -77,6 +89,7 @@ tasks.test = ->
 watchIter = ->
   tasks.build()
   tasks.test()
+  tasks.serve()
 
 #-------------------------------------------------------------------------------
 cleanDir = (dir) ->
