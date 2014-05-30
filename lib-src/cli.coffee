@@ -5,8 +5,8 @@ path = require "path"
 _    = require "underscore"
 nopt = require "nopt"
 
-cfProxy = require "./cf-debug-proxy"
-utils   = require "./utils"
+cfNodeDebug = require "./cf-node-debug"
+utils       = require "./utils"
 
 cli = exports
 
@@ -49,49 +49,55 @@ cli.main = (args) ->
     if debugPrefix is ""
       utils.logError "the value of the --debug-prefix option must be a non-empty string"
 
-    cfProxy.run args, opts
+    cfNodeDebug.run args, opts
 
 #-------------------------------------------------------------------------------
 help = ->
     console.log """
-        #{utils.PROGRAM} [options] -- commmand
+    usage:
 
-            command      is the node command line to start your application
+        cf-node-debug [options] -- program arg arg ...
 
-        options:
+    `program arg arg ...` is what you would pass to `node` to start your program.
 
-          -d --debug-prefix   URL prefix of requests sent to the debugger
-          -b --break          have the debugger pause at the beginning of the program
-          -v --verbose        generate lots of diagnostic messages
+    options:
 
-        This program does the following:
+        -d --debug-prefix   URL prefix of requests sent to the debugger
+        -b --break          have the debugger pause at the beginning of the program
+        -v --verbose        generate diagnostic messages
 
-        - starts the specified application
-          - it's PORT environment variable will be changed to port PORT+1
-          - it will be launched with the appropriate node debug option
+    The default debug-prefix is `--debugger`.
 
-        - starts node-inspector on PORT+2
+    Note that the `--` token is **REQUIRED** if your program or any arguments
+    start with `-`.  Otherwise it's optional.
 
-        - starts a proxy server on the PORT environment variable
+    This program does the following:
 
-        - sends non-debug traffic (ie, not prefixed by --debug-url option) to
-          the specified application
+    - starts the specified node application with arguments
+      - it's PORT environment variable will be changed to port PORT+1
+      - it will be launched with the appropriate node debug option
 
-        - sends debug traffic (ie, prefixed by --debug-url option) to
-          node-inspector
+    - starts node-inspector on PORT+2
 
-        example:
+    - starts a proxy server on the PORT environment variable
 
-            #{utils.PROGRAM} -- node server.js
+    - sends non-debug traffic (ie, not prefixed by `--debug-prefix` option) to
+      the specified application
 
-        version: #{utils.VERSION}; for more info: #{utils.HOMEPAGE}
+    - sends debug traffic (ie, prefixed by `--debug-prefix` option) to
+      node-inspector
+
+    example:
+
+        cf-node-debug -- server.js
+
+    version: #{utils.VERSION}; for more info: #{utils.HOMEPAGE}
     """
 
     process.exit 1
 
 #-------------------------------------------------------------------------------
 cli.main.call null, (process.argv.slice 2) if require.main is module
-
 
 #-------------------------------------------------------------------------------
 # Copyright IBM Corp. 2014

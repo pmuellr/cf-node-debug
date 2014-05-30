@@ -1,7 +1,7 @@
-node-cf-debug-proxy - proxy requests to multiple servers based on url
+cf-node-debug - proxy requests to multiple servers based on url
 ================================================================================
 
-The `cf-debug-proxy` package provides debugging capability for your node
+The `cf-node-debug` package provides debugging capability for your node
 applications while running on Cloud Foundry.  It launches two apps -
 `node-inspector` and your application, and acts as an HTTP proxy.  It will
 proxy *most* of the requests to your application, and debugger-specific
@@ -12,30 +12,49 @@ requests to `node-inspector`.
 installation
 ================================================================================
 
-*eventually...*
+    npm install cf-node-debug
 
-    npm install cf-debug-proxy
+Make sure you add `cf-node-debug` to your `package.json` as well.
 
 
 
 usage
 ================================================================================
 
-    cf-debug-proxy [options] program arg arg arg ...
+    cf-node-debug [options] -- commmand arg arg ...
 
-`cf-debug-proxy` will run the specified program and the node-inspector debugger,
-side-by-side, proxying debugger-specific HTTP requests to the debugger, and
-everything else to the specified program.  It's assumed the program you are
-running provides an HTTP server.
+`command arg arg ...` is the node command line to start your application
 
-options
---------------------------------------------------------------------------------
+options:
 
     -d --debug-prefix   URL prefix of requests sent to the debugger
     -b --break          have the debugger pause at the beginning of the program
-    -v --verbose        generate lots of diagnostic messages
+    -v --verbose        generate diagnostic messages
 
-The default value for `--debug-prefix` is `/--debugger`.
+The default debug-prefix is `--debugger`.
+
+Note that the `--` token is **REQUIRED** if your node command line
+contains any arguments that start with `-`.  Otherwise it's optional.
+
+This program does the following:
+
+- starts the specified node application with arguments
+  - it's PORT environment variable will be changed to port PORT+1
+  - it will be launched with the appropriate node debug option
+
+- starts node-inspector on PORT+2
+
+- starts a proxy server on the PORT environment variable
+
+- sends non-debug traffic (ie, not prefixed by `--debug-prefix` option) to
+  the specified application
+
+- sends debug traffic (ie, prefixed by `--debug-prefix` option) to
+  node-inspector
+
+example:
+
+    cf-node-debug -- node server.js
 
 assumptions
 --------------------------------------------------------------------------------
@@ -54,11 +73,11 @@ cf start command `node node-stuff` to start your app.
 
 To debug this app:
 
-* add a dependency of `cf-debug-proxy` to your `package.json` file
+* add a dependency of `cf-node-debug` to your `package.json` file
 
 * change your start command to:
 
-      node_modules/.bin/cf-debug-proxy node-stuff
+      node_modules/.bin/cf-node-debug node-stuff
 
 * re-push your application
 

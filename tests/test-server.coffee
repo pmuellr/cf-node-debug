@@ -7,7 +7,7 @@ expect = require "expect.js"
 cfProxy = require ".."
 
 #-------------------------------------------------------------------------------
-describe "cf-debug-proxy", ->
+describe "cf-node-debug", ->
 
   #-----------------------------------------------------------------------------
   it "export a function named run", ->

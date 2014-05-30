@@ -59,7 +59,7 @@ tasks.serve = ->
 serveDelayed = ->
   log "running server"
 
-  args = "bin/cf-debug-proxy.js -- node tests/server.js"
+  args = "bin/cf-node-debug.js -- tests/server.js"
   args = args.split(/\s+/)
 
   server.start PidFile, "node", args

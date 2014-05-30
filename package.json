@@ -1,14 +1,14 @@
 {
-  "name":               "cf-debug-proxy",
-  "main":               "./lib/cf-debug-proxy",
+  "name":               "cf-node-debug",
+  "main":               "./lib/cf-node-debug",
   "description":        "proxy in aid of debugging node programs on Cloud Foundry",
   "version":            "0.1.0",
   "author":             "pmuellr",
   "license":            "Apache-2.0",
-  "homepage":           "https://github.com/cloudfoundry-community/node-cf-debug-proxy",
+  "homepage":           "https://github.com/pmuellr/cf-node-debug",
   "repository": {
     "type":             "git",
-    "url":              "https://github.com/cloudfoundry-community/node-cf-debug-proxy.git"
+    "url":              "https://github.com/pmuellr/cf-node-debug.git"
   },
   "dependencies": {
     "cfenv":            "0.2.x",
@@ -17,8 +17,7 @@
     "nopt":             "2.2.x",
     "node-inspector":   "0.7.3",
     "q":                "1.0.1",
-    "underscore":       "1.6.x",
-    "websocket":        "1.0.x"
+    "underscore":       "1.6.x"
   },
   "devDependencies": {
     "coffee-script":    "1.7.x",

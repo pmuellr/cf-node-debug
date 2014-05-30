@@ -8,7 +8,6 @@ _          = require "underscore"
 http       = require "http"
 cfenv      = require "cfenv"
 httpProxy  = require "http-proxy"
-websocket  = require "websocket"
 
 utils       = require "./utils"
 
@@ -19,9 +18,6 @@ PORT_PROXY  = appEnv.port
 PORT_TARGET = appEnv.port + 1
 PORT_DEBUG  = appEnv.port + 2
 PORT_V8     = 5858
-
-URL_TARGET  = "http://localhost:#{PORT_TARGET}"
-URL_DEBUG   = "http://localhost:#{PORT_DEBUG}"
 
 ProxyTarget = new httpProxy.createProxyServer
   target:
@@ -139,7 +135,6 @@ startProxy = (opts) ->
       ProxyDebug.ws request, socket, head
     else
       ProxyTarget.ws request, socket, head
-
 
   utils.log "#{PRE_P} starting server at: #{appEnv.url}"
   utils.log "#{PRE_P} access debugger at: #{appEnv.url}/#{debugPrefix}/inspector.html"
