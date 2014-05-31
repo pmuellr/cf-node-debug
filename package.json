@@ -2,10 +2,13 @@
   "name":               "cf-node-debug",
   "main":               "./lib/cf-node-debug",
   "description":        "proxy in aid of debugging node programs on Cloud Foundry",
-  "version":            "0.1.0",
+  "version":            "0.1.1",
   "author":             "pmuellr",
   "license":            "Apache-2.0",
   "homepage":           "https://github.com/pmuellr/cf-node-debug",
+  "bin": {
+    "cf-node-debug":    "bin/cf-node-debug.js"
+  },
   "repository": {
     "type":             "git",
     "url":              "https://github.com/pmuellr/cf-node-debug.git"

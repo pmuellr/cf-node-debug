@@ -87,7 +87,11 @@ startTarget = (args, opts) ->
 
 #-------------------------------------------------------------------------------
 startDebugger = (opts) ->
-  args = ["node_modules/.bin/node-inspector", "--web-port=#{PORT_DEBUG}"]
+  nodeInspector = require.resolve("node-inspector")
+  nodeInspector = path.join nodeInspector, "..", "..", ".bin", "node-inspector"
+  nodeInspector = path.relative process.cwd(), nodeInspector
+
+  args = [nodeInspector, "--web-port=#{PORT_DEBUG}"]
 
   stdio =  ["ignore", "pipe", "pipe"]
 
