@@ -120,3 +120,8 @@ license
 Apache License, Version 2.0
 
 <http://www.apache.org/licenses/LICENSE-2.0.html>
+
+icon composed from:
+
+* https://github.com/voodootikigod/logo.js/
+* http://commons.wikimedia.org/wiki/File:Bedbug_(PSF).png

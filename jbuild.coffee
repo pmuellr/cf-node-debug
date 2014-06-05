@@ -14,7 +14,12 @@ tasks = defineTasks exports,
   build: "build the server"
   test:  "run tests"
 
-WatchSpec = "lib-src/**/* tests/**/*"
+WatchSpec = """
+  lib-src/      lib-src/**/*
+  tests/        tests/**/*
+  web-debugger/ web-debugger/**/*
+  """
+
 PidFile   = "tmp/server.pid"
 
 #-------------------------------------------------------------------------------
@@ -34,6 +39,10 @@ tasks.build = ->
 
     process.exit 1
 
+  unless test "-d", "bower_components"
+    exec "bower install jquery#2.1"
+    exec "bower install bootstrap#3.1"
+
   cleanDir "lib"
 
   log "- compiling server coffee files"
@@ -44,7 +53,7 @@ tasks.watch = ->
   watchIter()
 
   watch
-    files: WatchSpec.split " "
+    files: WatchSpec.split /\s+/
     run:   watchIter
 
   watchFiles "jbuild.coffee" :->

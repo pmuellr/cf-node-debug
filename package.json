@@ -14,12 +14,21 @@
     "url":              "https://github.com/pmuellr/cf-node-debug.git"
   },
   "dependencies": {
+    "node-inspector":   "0.7.3",
+
+    "body-parser":      "1.3.x",
     "cfenv":            "0.2.x",
-    "express":          "4.3.x",
+    "cookie":           "0.1.x",
+    "cookie-parser":    "1.1.x",
+    "express":          "4.4.x",
+    "client-sessions":  "0.6.x",
+    "handlebars":       "2.0.x",
     "http-proxy":       "1.1.x",
     "nopt":             "2.2.x",
-    "node-inspector":   "0.7.3",
-    "q":                "1.0.1",
+    "passport":         "0.2.x",
+    "passport-local":   "1.0.x",
+    "q":                "1.0.x",
+    "serve-favicon":    "2.0.x",
     "underscore":       "1.6.x"
   },
   "devDependencies": {

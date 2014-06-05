@@ -1,15 +1,33 @@
 # Licensed under the Apache License. See footer for details.
 
+fs            = require "fs"
 path          = require "path"
+crypto        = require "crypto"
 child_process = require "child_process"
 
-q          = require "q"
-_          = require "underscore"
-http       = require "http"
-cfenv      = require "cfenv"
-httpProxy  = require "http-proxy"
+q              = require "q"
+_              = require "underscore"
+http           = require "http"
+cfenv          = require "cfenv"
+cookie         = require "cookie"
+express        = require "express"
+passport       = require "passport"
+httpProxy      = require "http-proxy"
+bodyParser     = require "body-parser"
+handlebars     = require "handlebars"
+cookieParser   = require "cookie-parser"
+clientSessions = require "client-sessions"
 
-utils       = require "./utils"
+auth  = require "./auth"
+utils = require "./utils"
+
+DebuggerIndexHTML         = fs.readFileSync "web-debugger/index.html", "utf8"
+DebuggerIndexHTMLTemplate = handlebars.compile DebuggerIndexHTML
+
+#-------------------------------------------------------------------------------
+auth.setUser
+  userid:   "test"
+  password: "test"
 
 #-------------------------------------------------------------------------------
 appEnv = cfenv.getAppEnv()
@@ -33,11 +51,33 @@ PRE_T = "target:"
 PRE_D = "debug: "
 PRE_P = "proxy:"
 
+ClientSessions = null
+
 #-------------------------------------------------------------------------------
 exports.run = (args, opts) ->
+  opts.break       = !! opts.break
+  opts.verbose     = !! opts.verbose
+  opts.debugPrefix = "--debugger" unless opts.debugPrefix?
+
+  match = opts.debugPrefix.match /\/*(.*)\/*/
+  opts.debugPrefix = "/#{match[1]}"
+
   utils.vlog "version: #{utils.VERSION}"
   utils.vlog "args:    #{args.join ' '}"
   utils.vlog "opts:    #{utils.JL opts}"
+
+  sessionOptions =
+    cookieName:  "cf-node-debug"
+    requestKey:  "session"
+    secret:      auth.getUser().password
+    duration:    1000 * 60 * 60 * 24 * 7 * 2 # 2 weeks
+    cookie:
+      path:      "#{opts.debugPrefix}/"
+      ephemeral: false
+      httpOnly:  true
+      secure:    false
+
+  ClientSessions = clientSessions sessionOptions
 
   target = startTarget args, opts
   debugr = startDebugger opts
@@ -110,40 +150,147 @@ startDebugger = (opts) ->
 
 #-------------------------------------------------------------------------------
 startProxy = (opts) ->
-  debugPrefix = opts["debug-prefix"]
+  debugPrefix      = opts.debugPrefix
+  debugPrefixSlash = "#{debugPrefix}/"
 
   ProxyTarget.on "error", (err, request, response) ->
     utils.log "#{PRE_P} target exception: #{err}"
-    response.writeHead 500, "Content-Type": "text/plain"
-    response.end "error processing request; check server console."
+
+    socket = request
+    if response.writeHead?
+      response.writeHead 500, "Content-Type": "text/plain"
+      response.end "error processing request; check server console."
+    else if socket.close?
+      socket.close()
 
   ProxyDebug.on "error", (err, request, response) ->
     utils.log "#{PRE_P} debug exception: #{err}"
-    response.writeHead 500, "Content-Type": "text/plain"
-    response.end "error processing request; check server console."
 
-  proxyServer = http.createServer (request, response) ->
-    [empty, root, rest...] = request.url.split path.sep
+    socket = request
+    if response.writeHead?
+      response.writeHead 500, "Content-Type": "text/plain"
+      response.end "error processing request; check server console."
+    else if socket.close?
+      socket.close()
 
-    if root is debugPrefix
-      request.url = "/#{rest.join '/'}"
-      ProxyDebug.web request, response
+  #-----------------------------------------------------------------------------
+  debugApp = express.Router()
+  debugApp.use ClientSessions
+  debugApp.use resetMessage
+  debugApp.use bodyParser()
+  debugApp.use passport.initialize()
+  debugApp.use setIsAuthenticated
+  debugApp.use "/bower_components", express.static "bower_components"
+  debugApp.use "/cf-node-debug",    express.static "web-debugger/cf-node-debug"
+
+  debugApp.get "/", (request, response) ->
+
+    unless request.originalUrl.match /.*\/$/
+      response.redirect debugPrefixSlash
+      return
+
+    utils.log "debugApp / request.session: #{utils.JL request.session}"
+    utils.log "debugApp / isAuthenticated: #{request.isAuthenticated}"
+    data =
+      userid:      request.session.userid || "[not logged in]"
+      message:     request.session.message
+      messageShow: request.session.messageShow
+      loggedOut:   ""
+      loggedIn:    ""
+
+    if request.isAuthenticated
+      data.loggedOut = "hidden"
+
     else
-      ProxyTarget.web request, response
+      data.loggedIn  = "hidden"
+
+    indexHTML = DebuggerIndexHTMLTemplate data
+
+    response.send indexHTML
+
+  debugApp.get  "/login",  (request, response, next) ->
+    response.redirect debugPrefixSlash
+
+  debugApp.post "/login",  (request, response, next) ->
+    authr = passport.authenticate "local", (err, user, info) ->
+      if err?
+        request.session.message = err.message
+        return response.redirect debugPrefixSlash
+
+      unless user
+        request.session.message = info.message
+        return response.redirect debugPrefixSlash
+
+      request.session.userid   = user.userid
+      request.session.password = user.password
+
+      response.redirect debugPrefixSlash
+
+    authr request, response, next
+
+  debugApp.post "/logout", (request, response) ->
+    request.session.userid   = ""
+    request.session.password = ""
+
+    response.redirect debugPrefixSlash
+
+  debugApp.get  "/logout", (request, response, next) ->
+    response.redirect debugPrefixSlash
+
+  debugApp.use (request, response, next) ->
+    return next() if request.isAuthenticated
+
+    response.redirect debugPrefixSlash
+
+  debugApp.use ProxyDebug.web.bind ProxyDebug
+
+  #-----------------------------------------------------------------------------
+  proxyApp = express()
+
+  proxyApp.use debugPrefix, debugApp
+  proxyApp.use ProxyTarget.web.bind ProxyTarget
+
+  #-----------------------------------------------------------------------------
+  proxyServer = http.createServer proxyApp
 
   proxyServer.on "upgrade", (request, socket, head) ->
     [empty, root, rest...] = request.url.split path.sep
 
-    if root is debugPrefix
-      request.url = "/#{rest.join '/'}"
-      ProxyDebug.ws request, socket, head
-    else
+    unless "/#{root}" is debugPrefix
       ProxyTarget.ws request, socket, head
+      return
+
+    ClientSessions request, {}, ->
+      setIsAuthenticated request, {}, ->
+        return socket.destroy() unless request.isAuthenticated
+
+        ProxyDebug.ws request, socket, head
 
   utils.log "#{PRE_P} starting server at: #{appEnv.url}"
-  utils.log "#{PRE_P} access debugger at: #{appEnv.url}/#{debugPrefix}/inspector.html"
+  utils.log "#{PRE_P} access debugger at: #{appEnv.url}#{debugPrefix}/inspector.html"
 
   proxyServer.listen PORT_PROXY
+
+#-------------------------------------------------------------------------------
+resetMessage = (request, response, next) ->
+  request.session.message     = ""
+  request.session.messageShow = "hidden"
+  next()
+
+#-------------------------------------------------------------------------------
+setIsAuthenticated = (request, response, next) ->
+  {userid, password} = request.session
+  user = auth.getUser()
+
+  request.isAuthenticated = false
+
+  if (userid is user.userid) and (password is user.password)
+    request.isAuthenticated = true
+
+  next()
+
+#-------------------------------------------------------------------------------
+authRequestFn = (request, response, next, err, user, info, redirect) ->
 
 #-------------------------------------------------------------------------------
 # Copyright IBM Corp. 2014
