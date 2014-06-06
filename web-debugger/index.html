@@ -1,0 +1,134 @@
+<!doctype html>
+
+<html>
+
+<!-- ======================================================================= -->
+<head>
+  <title>cf-node-debugger</title>
+  <meta name="viewport" content="width=device-width">
+
+  <link rel="shortcut icon" href="cf-node-debug/cf-node-debug.png">
+  <link rel="icon"          href="cf-node-debug/cf-node-debug.png">
+
+  <link rel="stylesheet" href="bower/bootstrap/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="bower/bootstrap/css/bootstrap-theme.min.css" />
+
+  <link rel="stylesheet" href="cf-node-debug/index.css" />
+</head>
+
+<!-- ======================================================================= -->
+<body>
+
+  <div class="container-fluid">
+
+    <div class="httpsMessage" style="display:none;">
+      <p>
+      <div class="alert alert-danger">
+        <p>You should be running this web page under https: and not http:,
+        to keep your password encrypted over the wire.  Here is the
+        https: link we've calculated for this page:
+
+        <p><a class="httpsLocation" href="#">#</a>
+      </div>
+    </div>
+
+    <div class="row"><div class="col-xs-12">
+      <h1>cf-node-debugger</h1>
+    </div></div>
+
+    <div class="row {{loggedIn}}"><div class="col-xs-12">
+      <form role="form" action="logout" method="post">
+        logged in as: <b>{{userid}}</b>
+        <button type="submit" class="btn btn-primary btn-xs">logout</button>
+      </form>
+    </div></div>
+
+    <div class="row {{loggedOut}}"><div class="col-xs-12">
+      <form class="form-inline" role="form" action="login" method="post">
+        <div class="form-group">
+          <label class="sr-only" for="login-userid">userid</label>
+          <input name="username" type="text" class="form-control" id="login-userid" placeholder="userid">
+        </div>
+        <div class="form-group">
+          <label class="sr-only" for="login-password">password</label>
+          <input name="password" type="password" class="form-control" id="login-password" placeholder="password">
+        </div>
+        <button type="submit" class="btn btn-primary">log in</button>
+
+      </form>
+
+      <p>&nbsp;
+
+      <div class="{{messageShow}}">
+        <div class="alert alert-danger">{{message}}</div>
+      </div>
+    </div></div>
+
+    <div class="row">&nbsp;</div>
+
+    <div class="row"><div class="col-xs-12">
+      <div class="{{loggedOut}}">
+        <p>Welcome to <tt>cf-node-debugger</tt>!
+      </div>
+
+      <div class="{{loggedIn}}">
+        <p>You may proceed directly to <a href="inspector.html">the debugger</a>.
+      </div>
+
+      <p>For more info on <tt>cf-node-debugger</tt>, visit
+      <a href="https://www.npmjs.org/package/cf-node-debug">https://www.npmjs.org/package/cf-node-debug</a>
+
+      <p><tt>cf-node-debugger</tt> uses
+      <a href="https://www.npmjs.org/package/node-inspector">https://www.npmjs.org/package/cf-node-inspector</a>
+      for the debugger user interface.
+
+      <p><tt>node-inspector</tt> uses
+      <a href="https://developer.chrome.com/devtools/index">Chrome's Dev Tools</a>
+      for the debugger user interface.
+
+      <p><img src="cf-node-debug/cf-node-debug.png" width="128">
+    </div></div>
+
+  </div>
+
+  <script src="bower/jquery/jquery.min.js"></script>
+  <script src="bower/bootstrap/js/bootstrap.min.js"></script>
+
+  <script>
+  $(onLoad)
+
+  //---------------------------------------
+  function onLoad() {
+    var httpsLocation = getHttpsLocation()
+    if (null != httpsLocation) showHttpsMessage(httpsLocation)
+  }
+
+  //---------------------------------------
+  function showHttpsMessage(httpsLocation) {
+    var div
+
+    div = $(".httpsLocation")
+    div.text(httpsLocation)
+    div.attr("href", httpsLocation)
+
+    div = $(".httpsMessage")
+    div.slideToggle()
+  }
+
+  //---------------------------------------
+  function getHttpsLocation() {
+    var port = ""
+
+    if (location.protocol == "https:") return null
+  //if (location.hostname == "localhost") return null
+
+    if (location.port != "") port = ":" + location.port
+
+    return "https://" + location.hostname + port + location.pathname
+  }
+  </script>
+
+</body>
+
+<!-- ======================================================================= -->
+</html>

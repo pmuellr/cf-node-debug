@@ -27,6 +27,7 @@ usage
 
 options:
 
+    -a --auth           authentication (see below)
     -d --debug-prefix   URL prefix of requests sent to the debugger
     -b --break          have the debugger pause at the beginning of the program
     -v --verbose        generate diagnostic messages
@@ -56,12 +57,65 @@ example:
 
     cf-node-debug -- server.js
 
+
+
+authentication
+--------------------------------------------------------------------------------
+
+When you use cf-node-debug, you need to specify authentication parameters
+to access the debugger.  This is to keep random internet people from accessing
+your application's innards via the debugger.
+
+You can specify the authentication parameters via the `-a` / `--auth` option,
+or via the `CF_NODE_DEBUG_AUTH` environment variable, or via a Cloud Foundry
+service.  In all cases, the authentication parameters are specified as
+a string of the form:
+
+    scheme:parms
+
+Currently the only scheme supported is `local`, and the parms for this
+scheme are the userid and password separated by a `:`.  Thus, the
+authentication parameter of
+
+    local:joeuser:dumbsecret
+
+indicates you should log in with the userid `joeuser` and password `dumbsecret`
+when prompted.
+
+Cloud Foundry users should use a user-provided service to set the
+authentication parameters.  To do this, you need to create a user-provided
+service whose name has `cf-node-debug` in it somewhere, and has one
+property `auth`, whose value will be the same as described above.  You
+should then bind this service to all apps that you want to debug.
+
+example:
+
+Run this command to create a service named `cf-node-debug`:
+
+    cf cups cf-node-debug -p auth
+
+You will be prompted for value of the `auth` property; enter something like
+
+    local:joeuser:dumbsecret
+
+You should then see a message that service got created.
+
+You can then bind the service to your app with the following command:
+
+    cf bind-service my-app cf-node-debug
+
+
+
 assumptions
 --------------------------------------------------------------------------------
 
 The main assumption is that your program is running on CloudFoundry, and thus
 determines the HTTP port it will be using based on the `PORT` environment
 variable.
+
+In addition, it's assumed that you won't be using the path specified by
+the `--debug-prefix` option in your application, as these URLs will be
+redirected to the debugger.
 
 
 
@@ -120,3 +174,8 @@ license
 Apache License, Version 2.0
 
 <http://www.apache.org/licenses/LICENSE-2.0.html>
+
+icon composed from:
+
+* https://github.com/voodootikigod/logo.js/
+* http://commons.wikimedia.org/wiki/File:Bedbug_(PSF).png

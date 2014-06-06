@@ -16,6 +16,7 @@ cli.main = (args) ->
     help() if args[0] in ["?", "-?", "--?"]
 
     opts =
+        auth:           [ "a", String ]
         break:          [ "b", Boolean ]
         "debug-prefix": [ "d", String,  "--debugger" ]
         verbose:        [ "v", Boolean,  ]
@@ -45,9 +46,12 @@ cli.main = (args) ->
 
     utils.verbose opts.verbose
 
-    debugPrefix = opts["debug-prefix"]
+    debugPrefix = opts["debug-prefix"].trim()
     if debugPrefix is ""
       utils.logError "the value of the --debug-prefix option must be a non-empty string"
+
+    if debugPrefix.match /\/+/
+      utils.logError "the value of the --debug-prefix option must not a slash"
 
     cfNodeDebug.run args, opts
 
@@ -62,6 +66,7 @@ help = ->
 
     options:
 
+        -a --auth           authentication (see below)
         -d --debug-prefix   URL prefix of requests sent to the debugger
         -b --break          have the debugger pause at the beginning of the program
         -v --verbose        generate diagnostic messages
@@ -91,6 +96,28 @@ help = ->
 
         cf-node-debug -- server.js
 
+    authentication:
+
+    When you use cf-node-debug, you need to specify authentication parameters
+    to access the debugger.  This is to keep random internet people from accessing
+    your application's innards via the debugger.
+
+    You can specify the authentication parameters via the `-a` / `--auth` option,
+    or via the `CF_NODE_DEBUG_AUTH` environment variable, or via a Cloud Foundry
+    service.  In all cases, the authentication parameters are specified as
+    a string of the form:
+
+        scheme:parms
+
+    Currently the only scheme supported is `local`, and the parms for this
+    scheme are the userid and password separated by a `:`.  Thus, the
+    authentication parameter of
+
+        local:joeuser:dumbsecret
+
+    indicates you should log in with the userid `joeuser` and password `dumbsecret`
+    when prompted.
+      
     version: #{utils.VERSION}; for more info: #{utils.HOMEPAGE}
     """
 
