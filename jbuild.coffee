@@ -42,6 +42,29 @@ tasks.build = ->
   unless test "-d", "bower_components"
     exec "bower install jquery#2.1"
     exec "bower install bootstrap#3.1"
+    rm "-rf", "bower"
+
+  unless test "-d", "bower"
+    bc = "bower_components/bootstrap/dist"
+    br = "bower/bootstrap"
+
+    mkdir "-p", "#{br}/css"
+    mkdir "-p", "#{br}/fonts"
+    mkdir "-p", "#{br}/js"
+
+    cp "#{bc}/css/bootstrap-theme.min.css", "#{br}/css"
+    cp "#{bc}/css/bootstrap-theme.css.map", "#{br}/css"
+    cp "#{bc}/css/bootstrap.min.css",       "#{br}/css"
+    cp "#{bc}/css/bootstrap.css.map",       "#{br}/css"
+    cp "#{bc}/fonts/*",                     "#{br}/fonts"
+    cp "#{bc}/js/bootstrap.min.js",         "#{br}/js"
+
+    bc = "bower_components/jquery/dist"
+    br = "bower/jquery"
+
+    mkdir "-p", "#{br}"
+    cp "#{bc}/jquery.min.js",  "#{br}"
+    cp "#{bc}/jquery.min.map", "#{br}"
 
   cleanDir "lib"
 
@@ -68,7 +91,7 @@ tasks.serve = ->
 serveDelayed = ->
   log "running server"
 
-  args = "bin/cf-node-debug.js -- tests/server.js"
+  args = "bin/cf-node-debug.js --break --auth local:foo:bar -- tests/server.js"
   args = args.split(/\s+/)
 
   server.start PidFile, "node", args

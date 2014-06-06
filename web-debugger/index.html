@@ -10,8 +10,8 @@
   <link rel="shortcut icon" href="cf-node-debug/cf-node-debug.png">
   <link rel="icon"          href="cf-node-debug/cf-node-debug.png">
 
-  <link rel="stylesheet" href="bower_components/bootstrap/dist/css/bootstrap.min.css" />
-  <link rel="stylesheet" href="bower_components/bootstrap/dist/css/bootstrap-theme.min.css" />
+  <link rel="stylesheet" href="bower/bootstrap/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="bower/bootstrap/css/bootstrap-theme.min.css" />
 
   <link rel="stylesheet" href="cf-node-debug/index.css" />
 </head>
@@ -20,6 +20,17 @@
 <body>
 
   <div class="container-fluid">
+
+    <div class="httpsMessage" style="display:none;">
+      <p>
+      <div class="alert alert-danger">
+        <p>You should be running this web page under https: and not http:,
+        to keep your password encrypted over the wire.  Here is the
+        https: link we've calculated for this page:
+
+        <p><a class="httpsLocation" href="#">#</a>
+      </div>
+    </div>
 
     <div class="row"><div class="col-xs-12">
       <h1>cf-node-debugger</h1>
@@ -45,8 +56,11 @@
         <button type="submit" class="btn btn-primary">log in</button>
 
       </form>
+
+      <p>&nbsp;
+
       <div class="{{messageShow}}">
-        <div class="alert alert-warning">{{message}}</div>
+        <div class="alert alert-danger">{{message}}</div>
       </div>
     </div></div>
 
@@ -77,8 +91,43 @@
 
   </div>
 
-  <script src="bower_components/jquery/dist/jquery.min.js"></script>
-  <script src="bower_components/bootstrap/dist/js/bootstrap.min.js"></script>
+  <script src="bower/jquery/jquery.min.js"></script>
+  <script src="bower/bootstrap/js/bootstrap.min.js"></script>
+
+  <script>
+  $(onLoad)
+
+  //---------------------------------------
+  function onLoad() {
+    var httpsLocation = getHttpsLocation()
+    if (null != httpsLocation) showHttpsMessage(httpsLocation)
+  }
+
+  //---------------------------------------
+  function showHttpsMessage(httpsLocation) {
+    var div
+
+    div = $(".httpsLocation")
+    div.text(httpsLocation)
+    div.attr("href", httpsLocation)
+
+    div = $(".httpsMessage")
+    div.slideToggle()
+  }
+
+  //---------------------------------------
+  function getHttpsLocation() {
+    var port = ""
+
+    if (location.protocol == "https:") return null
+  //if (location.hostname == "localhost") return null
+
+    if (location.port != "") port = ":" + location.port
+
+    return "https://" + location.hostname + port + location.pathname
+  }
+  </script>
+
 </body>
 
 <!-- ======================================================================= -->

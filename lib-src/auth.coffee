@@ -21,6 +21,15 @@ auth.getUser = ->
   return JSON.parse JSON.stringify User
 
 #-------------------------------------------------------------------------------
+auth.parseAuthSpec = (spec) ->
+  parts = "#{spec}".match /^(.*?):(.*?):(.*)$/
+  return null unless parts?
+
+  [junk, type, userid, password] = parts
+
+  return {type, userid, password}
+
+#-------------------------------------------------------------------------------
 passport.serializeUser (user, done) ->
   done null, user.userid
 

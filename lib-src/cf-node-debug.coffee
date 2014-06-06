@@ -3,31 +3,26 @@
 fs            = require "fs"
 path          = require "path"
 crypto        = require "crypto"
+stream        = require "stream"
 child_process = require "child_process"
 
 q              = require "q"
 _              = require "underscore"
 http           = require "http"
 cfenv          = require "cfenv"
-cookie         = require "cookie"
 express        = require "express"
 passport       = require "passport"
 httpProxy      = require "http-proxy"
 bodyParser     = require "body-parser"
 handlebars     = require "handlebars"
-cookieParser   = require "cookie-parser"
 clientSessions = require "client-sessions"
 
 auth  = require "./auth"
 utils = require "./utils"
 
-DebuggerIndexHTML         = fs.readFileSync "web-debugger/index.html", "utf8"
+DebuggerIndexHTML         = path.join __dirname, "..", "web-debugger", "index.html"
+DebuggerIndexHTML         = fs.readFileSync DebuggerIndexHTML, "utf8"
 DebuggerIndexHTMLTemplate = handlebars.compile DebuggerIndexHTML
-
-#-------------------------------------------------------------------------------
-auth.setUser
-  userid:   "test"
-  password: "test"
 
 #-------------------------------------------------------------------------------
 appEnv = cfenv.getAppEnv()
@@ -66,10 +61,40 @@ exports.run = (args, opts) ->
   utils.vlog "args:    #{args.join ' '}"
   utils.vlog "opts:    #{utils.JL opts}"
 
+  # get auth
+
+  service = appEnv.getService /cf-node-debug/
+
+  cliAuth = opts.auth
+  envAuth = process.env.CF_NODE_DEBUG_AUTH
+  svcAuth = service?.credentials?.auth
+
+  svrAuthString = cliAuth || envAuth || svcAuth || "local::"
+  svrAuth       = auth.parseAuthSpec svrAuthString
+
+  notAccessible = "debugger won't be accessible"
+
+  if not svrAuth?
+    utils.log "unable to parse auth `#{svrAuthString}`; #{notAccessible}"
+  else if svrAuth.type isnt "local"
+    utils.log "invalid auth type for `#{svrAuthString}`: `#{svrAuth.type}`; #{notAccessible}"
+  else if svrAuth.userid is ""
+    utils.log "empty userid for `#{svrAuthString}`; #{notAccessible}"
+  else if svrAuth.password is ""
+    utils.log "empty password for `#{svrAuthString}`; #{notAccessible}"
+  else
+    auth.setUser
+      userid:   svrAuth.userid
+      password: svrAuth.password
+
+  password = svrAuth?.password
+  password = "crap" unless password?
+  password = "crap" if password is ""
+
   sessionOptions =
     cookieName:  "cf-node-debug"
     requestKey:  "session"
-    secret:      auth.getUser().password
+    secret:      password
     duration:    1000 * 60 * 60 * 24 * 7 * 2 # 2 weeks
     cookie:
       path:      "#{opts.debugPrefix}/"
@@ -140,7 +165,19 @@ startDebugger = (opts) ->
   utils.log "#{PRE_D} starting `node #{args.join ' '}`"
   child = child_process.spawn "node", args, options
 
-  child.stdout.pipe(process.stdout)
+  class FilterStream extends stream.Transform
+    constructor: (options) ->
+      super
+
+    _transform: (chunk, enc, cb) ->
+      s = chunk.toString("utf8")
+      s = s.replace /Visit .* to start debugging\.\n/, ""
+      s = new Buffer(s, "utf8")
+      @push s, enc
+      cb()
+
+  filterStream = new FilterStream()
+  child.stdout.pipe(filterStream).pipe(process.stdout)
   child.stderr.pipe(process.stderr)
 
   child.on "error", (err)  -> utils.log "#{PRE_D} exception: #{err}"
@@ -174,14 +211,16 @@ startProxy = (opts) ->
       socket.close()
 
   #-----------------------------------------------------------------------------
+  bowerPath = path.join __dirname, "..", "bower"
+  debugPath = path.join __dirname, "..", "web-debugger", "cf-node-debug"
+
   debugApp = express.Router()
   debugApp.use ClientSessions
-  debugApp.use resetMessage
   debugApp.use bodyParser()
   debugApp.use passport.initialize()
   debugApp.use setIsAuthenticated
-  debugApp.use "/bower_components", express.static "bower_components"
-  debugApp.use "/cf-node-debug",    express.static "web-debugger/cf-node-debug"
+  debugApp.use "/bower",         express.static bowerPath
+  debugApp.use "/cf-node-debug", express.static debugPath
 
   debugApp.get "/", (request, response) ->
 
@@ -189,12 +228,18 @@ startProxy = (opts) ->
       response.redirect debugPrefixSlash
       return
 
-    utils.log "debugApp / request.session: #{utils.JL request.session}"
-    utils.log "debugApp / isAuthenticated: #{request.isAuthenticated}"
+    message = request.session.message
+    if message? and message.length
+      messageShow = ""
+    else
+      messageShow = "hidden"
+
+    request.session.message = ""
+
     data =
       userid:      request.session.userid || "[not logged in]"
-      message:     request.session.message
-      messageShow: request.session.messageShow
+      message:     message
+      messageShow: messageShow
       loggedOut:   ""
       loggedIn:    ""
 
@@ -272,12 +317,6 @@ startProxy = (opts) ->
   proxyServer.listen PORT_PROXY
 
 #-------------------------------------------------------------------------------
-resetMessage = (request, response, next) ->
-  request.session.message     = ""
-  request.session.messageShow = "hidden"
-  next()
-
-#-------------------------------------------------------------------------------
 setIsAuthenticated = (request, response, next) ->
   {userid, password} = request.session
   user = auth.getUser()
@@ -288,9 +327,6 @@ setIsAuthenticated = (request, response, next) ->
     request.isAuthenticated = true
 
   next()
-
-#-------------------------------------------------------------------------------
-authRequestFn = (request, response, next, err, user, info, redirect) ->
 
 #-------------------------------------------------------------------------------
 # Copyright IBM Corp. 2014
