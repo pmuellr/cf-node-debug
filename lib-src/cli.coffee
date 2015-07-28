@@ -1,9 +1,10 @@
 # Licensed under the Apache License. See footer for details.
 
-path = require "path"
+path  = require "path"
 
-_    = require "underscore"
-nopt = require "nopt"
+_     = require "underscore"
+nopt  = require "nopt"
+ports = require "portastic"
 
 cfNodeDebug = require "./cf-node-debug"
 utils       = require "./utils"
@@ -53,7 +54,10 @@ cli.main = (args) ->
     if debugPrefix.match /\/+/
       utils.logError "the value of the --debug-prefix option must not a slash"
 
-    cfNodeDebug.run args, opts
+    ports.find {min: 5858, max: 7000, retrieve: 1}, (err, data) ->
+      throw err if err
+      opts.v8Port = data
+      cfNodeDebug.run args, opts
 
 #-------------------------------------------------------------------------------
 help = ->
