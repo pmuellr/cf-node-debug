@@ -26,7 +26,8 @@
     "passport":         "0.2.x",
     "passport-local":   "1.0.x",
     "q":                "1.0.x",
-    "underscore":       "1.6.x"
+    "underscore":       "1.6.x",
+    "portastic":        "0.0.1"
   },
   "devDependencies": {
     "coffee-script":    "1.7.x",

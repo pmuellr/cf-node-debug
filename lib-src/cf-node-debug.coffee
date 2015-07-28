@@ -127,9 +127,9 @@ startTarget = (args, opts) ->
   args.shift() if args[0] is "node"
 
   if opts.break
-    args.unshift "--debug-brk"
+    args.unshift "--debug-brk=" + opts.v8Port
   else
-    args.unshift "--debug"
+    args.unshift "--debug=" + opts.v8Port
 
   env = _.clone process.env
   env.PORT          = PORT_TARGET
